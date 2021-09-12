@@ -1,4 +1,5 @@
-# Private messaging with Socket.IO
+This project is based on the Part II example
+# Private messaging with Socket.IO.
 
 Please read the related guide:
 
