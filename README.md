@@ -1,5 +1,7 @@
 # Private messaging with Socket.IO.
 
+In this project, i use socket.io session persisting on redis. saving users, userId, and connect status only in session
+
 Please read the related guide on socket.io:
 - [Article explanation](https://socket.io/get-started/private-messaging-part-2/): persistent user ID
 
