@@ -8,14 +8,15 @@ const io = require("socket.io")(httpServer, {
 const crypto = require("crypto");
 const randomId = () => crypto.randomBytes(8).toString("hex");
 
-const { InMemorySessionStore } = require("./sessionStore");
-const sessionStore = new InMemorySessionStore();
+const { RedisSessionStore} = require("./sessionStore");
+const sessionStore = new RedisSessionStore();
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const sessionID = socket.handshake.auth.sessionID;
-  console.log(sessionID)
+ 
   if (sessionID) {
-    const session = sessionStore.findSession(sessionID);
+    const session = await sessionStore.findSession(sessionID);
+
     if (session) {
       socket.sessionID = sessionID;
       socket.userID = session.userID;
@@ -24,6 +25,7 @@ io.use((socket, next) => {
     }
   }
   const username = socket.handshake.auth.username;
+
   if (!username) {
     return next(new Error("invalid username"));
   }
@@ -33,9 +35,9 @@ io.use((socket, next) => {
   next();
 });
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   // persist session
-  sessionStore.saveSession(socket.sessionID, {
+  await sessionStore.saveSession(socket.sessionID, {
     userID: socket.userID,
     username: socket.username,
     connected: true,
@@ -52,14 +54,17 @@ io.on("connection", (socket) => {
 
   // fetch existing users
   const users = [];
-  sessionStore.findAllSessions().forEach((session) => {
-    users.push({
-      userID: session.userID,
-      username: session.username,
-      connected: session.connected,
+  sessionStore.findAllSessions().then(keys=>{
+    keys.forEach((session) => {
+      users.push({
+        userID: session.userID,
+        username: session.username,
+        connected: session.connected,
+      });
     });
-  });
-  socket.emit("users", users);
+    socket.emit("users", users);
+  })
+ 
 
   // notify existing users
   socket.broadcast.emit("user connected", {
