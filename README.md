@@ -1,7 +1,7 @@
 # Private messaging with Socket.IO.
 
 Please read the related guide on socket.io:
-- [Part II](https://socket.io/get-started/private-messaging-part-2/): persistent user ID
+- [Article explanation](https://socket.io/get-started/private-messaging-part-2/): persistent user ID
 
 
 ## Setup redis as it use to save sessions on
