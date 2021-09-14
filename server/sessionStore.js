@@ -4,37 +4,8 @@
   findAllSessions() {}
 }
 
-class InMemorySessionStore extends SessionStore {
-  constructor() {
-    super();
-    this.sessions = new Map();
-  }
-
-  findSession(id) {
-    return this.sessions.get(id);
-  }
-
-  saveSession(id, session) {
-    this.sessions.set(id, session);
-  }
-
-  findAllSessions() {
-    return [...this.sessions.values()];
-  }
-}
-const promisifyRedis = require('promisify-redis')
-const redis =  promisifyRedis(require('redis'));
-const redisClient = redis.createClient({
-  host: 'localhost',
-  port: 6379
-})
-
-redisClient.on("error", function(error) {
-  console.error('unable to create a redis client for session store');
-});
-
-class RedisSessionStore extends SessionStore {
-  constructor() {
+module.exports = class RedisSessionStore extends SessionStore {
+  constructor(redisClient) {
     super();
     this.sessions = redisClient;
   }
@@ -58,8 +29,3 @@ class RedisSessionStore extends SessionStore {
     return sessionsMap || []
   }
 }
-
-module.exports = {
-  InMemorySessionStore,
-  RedisSessionStore
-};

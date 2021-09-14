@@ -4,12 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "serve": "nodemon main",
-    "start": "node main"
+    "serve": "nodemon index.js",
+    "start": "node index.js"
   },
   "author": "Hasham",
   "license": "MIT",
   "dependencies": {
+    "connect-redis": "^6.0.0",
+    "express": "^4.17.1",
     "express-session": "^1.17.2",
     "nodemon": "^2.0.12",
     "promisify-redis": "0.0.5",
