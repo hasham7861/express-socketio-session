@@ -13,6 +13,8 @@ import SelectUsername from "./components/SelectUsername";
 import Chat from "./components/Chat";
 import socket from "./socket";
 
+
+
 export default {
   name: "App",
   components: {
@@ -32,19 +34,18 @@ export default {
     },
   },
   created() {
-    const sessionID = localStorage.getItem("sessionID");
-
+    const sessionID = this.$cookie.get('sessionID')
+    
     if (sessionID) {
       this.usernameAlreadySelected = true;
-      socket.auth = { sessionID };
+      socket.auth = {sessionID: sessionID};
       socket.connect();
     }
 
     socket.on("session", ({ sessionID, userID }) => {
       // attach the session ID to the next reconnection attempts
       socket.auth = { sessionID };
-      // store it in the localStorage
-      localStorage.setItem("sessionID", sessionID);
+      this.$cookie.set('sessionID', sessionID, { expires: '2m' });
       // save the ID of the user
       socket.userID = userID;
     });

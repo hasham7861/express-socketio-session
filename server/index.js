@@ -2,7 +2,9 @@ const httpServer = require("http").createServer();
 const io = require("socket.io")(httpServer, {
   cors: {
     origin: "http://localhost:8080",
-  },
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
 
 const crypto = require("crypto");
@@ -11,7 +13,9 @@ const randomId = () => crypto.randomBytes(8).toString("hex");
 const { RedisSessionStore} = require("./sessionStore");
 const sessionStore = new RedisSessionStore();
 
+
 io.use(async (socket, next) => {
+  
   const sessionID = socket.handshake.auth.sessionID;
  
   if (sessionID) {
@@ -36,6 +40,7 @@ io.use(async (socket, next) => {
 });
 
 io.on("connection", async (socket) => {
+
   // persist session
   await sessionStore.saveSession(socket.sessionID, {
     userID: socket.userID,

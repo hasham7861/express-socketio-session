@@ -4,11 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "serve": "nodemon main",
+    "start": "node main"
   },
-  "author": "Damien Arrachequesne <damien.arrachequesne@gmail.com>",
+  "author": "Hasham",
   "license": "MIT",
   "dependencies": {
+    "express-session": "^1.17.2",
+    "nodemon": "^2.0.12",
     "promisify-redis": "0.0.5",
     "redis": "^3.1.2",
     "socket.io": "^3.1.1"
