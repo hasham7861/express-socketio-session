@@ -5,7 +5,7 @@ General idea of how did i share a session between express and socketio: https://
 
 **Technologies used:** Vue, Express, Socket.io, and Redis.
 
-In this example: I set and retrieve username from socketIo but to end session I use expresss route to reference same session and destroying it.
+In this example: I set and retrieve username from socketIo but to end session I use express route to reference same session and destroying it.
 
 
 ### Technical: 
