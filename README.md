@@ -1,9 +1,11 @@
 # session example
 ### A session shared amongst vue, express, & socket.io
 
-How did i share a session between express and socketio: https://github.com/socketio/socket.io/discussions/4092
+General idea of how did i share a session between express and socketio: https://github.com/socketio/socket.io/discussions/4092
 
 **Technologies used:** Vue, Express, Socket.io, and Redis.
+
+In this example: I set and retrieve username from socketIo but to end session I use expresss route to reference same session and destroying it.
 
 
 ### Technical: 
