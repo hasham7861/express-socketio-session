@@ -1,304 +1,126 @@
-// const httpServer = require("http").createServer();
-// const io = require("socket.io")(httpServer, {
-//   cors: {
-//     origin: "http://localhost:8080",
-//     methods: ["GET", "POST"],
-//     credentials: true
-//   }
-// });
+const Express = require("express");
+const CookieParser = require('cookie-parser');
+const { Server } = require("http");
+const Session = require("express-session");
+const Redis =  require('redis');
+const Cors = require('cors');
+const ConnectRedis = require("connect-redis");
+const SocketIo = require("socket.io");
+const Config = require('./config');
 
-// const crypto = require("crypto");
-// const randomId = () => crypto.randomBytes(8).toString("hex");
-// const cookieParser = require('cookie-parser')
-// const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
+(function init(){
 
-// const { RedisSessionStore} = require("./sessionStore");
-// const sessionStore = new RedisSessionStore();
+  // Initialize the required clients
+  const app = createAndGetExpress();
+  const httpServer = Server(app);
+  const sio = createAndGetSocketIo(httpServer);
+  const {redisClient, redisStore} = createAndGetRedisClientAndStore();
 
+  // Setup session
+  const sessionMiddleware = createAndGetSessionMiddleware(redisStore,redisClient);
+  setSameSessionOnExpressAndSocketIo(sessionMiddleware, app, sio);
 
-// io.use(async (socket, next) => {
-  
-//   const sessionID = socket.handshake.auth.sessionID;
- 
-//   if (sessionID) {
-//     const session = await sessionStore.findSession(sessionID);
+  // Initialize all the addon routes and events
+  initExpressRoutes(app);
+  initSocketIoEvents(sio);
 
-//     if (session) {
-//       socket.sessionID = sessionID;
-//       socket.userID = session.userID;
-//       socket.username = session.username;
-//       return next();
-//     }
-//   }
-//   const username = socket.handshake.auth.username;
+  // Finally start listening for client requests
+  startListening(httpServer);
 
-//   if (!username) {
-//     return next(new Error("invalid username"));
-//   }
-//   socket.sessionID = randomId();
-//   socket.userID = randomId();
-//   socket.username = username;
-//   next();
-// });
+})()
 
-// io.on("connection", async (socket) => {
-
-//   // persist session
-//   await sessionStore.saveSession(socket.sessionID, {
-//     userID: socket.userID,
-//     username: socket.username,
-//     connected: true,
-//   });
-
-//   // emit session details
-//   socket.emit("session", {
-//     sessionID: socket.sessionID,
-//     userID: socket.userID,
-//   });
-
-//   // join the "userID" room
-//   socket.join(socket.userID);
-
-//   // fetch existing users
-//   const users = [];
-//   sessionStore.findAllSessions().then(keys=>{
-//     keys.forEach((session) => {
-//       users.push({
-//         userID: session.userID,
-//         username: session.username,
-//         connected: session.connected,
-//       });
-//     });
-//     socket.emit("users", users);
-//   })
- 
-
-//   // notify existing users
-//   socket.broadcast.emit("user connected", {
-//     userID: socket.userID,
-//     username: socket.username,
-//     connected: true,
-//   });
-
-//   // forward the private message to the right recipient (and to other tabs of the sender)
-//   socket.on("private message", ({ content, to }) => {
-//     socket.to(to).to(socket.userID).emit("private message", {
-//       content,
-//       from: socket.userID,
-//       to,
-//     });
-//   });
-
-//   // notify users upon disconnection
-//   socket.on("disconnect", async () => {
-//     const matchingSockets = await io.in(socket.userID).allSockets();
-//     const isDisconnected = matchingSockets.size === 0;
-//     if (isDisconnected) {
-//       // notify other users
-//       socket.broadcast.emit("user disconnected", socket.userID);
-//       // update the connection status of the session
-//       sessionStore.saveSession(socket.sessionID, {
-//         userID: socket.userID,
-//         username: socket.username,
-//         connected: false,
-//       });
-//     }
-//   });
-// });
-
-// const PORT = process.env.PORT || 3000;
-
-// httpServer.listen(PORT, () =>
-//   console.log(`server listening at http://localhost:${PORT}`)
-// );
-
-const crypto = require("crypto");
-const randomId = () => crypto.randomBytes(8).toString("hex");
-const cookieParser = require('cookie-parser')
-var express = require("express");
-var Server = require("http").Server;
-var session = require("express-session");
-const redis =  require('redis')
-var RedisStore = require("connect-redis")(session);
-const cookie = require("cookie");
-const cors = require('cors')
-const redisClient = redis.createClient({
-  host: 'localhost',
-  port: 6379
-})
-
-// var storeManager = new (require('./sessionStore'))(redisClient)
-
-var app = express();
-
-const corsOptions = {
-  origin: "http://localhost:8080",
-  credentials: true
+function isDevelopmentEnv(){
+  return Config.env === 'development';
 }
-app.use(cors(corsOptions))
 
+function createAndGetExpress(){
+  const app = Express();
 
-var server = Server(app);
-var sio = require("socket.io")(server,{
-  cors: {
-        origin: "http://localhost:8080",
-        methods: ["GET", "POST"],
-        credentials: true
-   }
-});
+  app.use(Cors(Config.corsOptions));
+  app.use(CookieParser(Config.session.cookie.secret));
 
-app.use(cookieParser("keyboard cat"))
+  return app;
+}
 
+function createAndGetSocketIo(httpServer){
+  const sio = SocketIo(httpServer,{
+    cors: Config.corsOptions,
+  })
 
-var sessionMiddleware = session({
-    store: new RedisStore({client:redisClient}), // XXX redis server config
-    secret: "keyboard cat",
+  return sio;
+}
+
+function createAndGetRedisClientAndStore(){
+  const redisClient = Redis.createClient({
+    host: 'localhost',
+    port: 6379
+  });
+  
+  const redisStore = ConnectRedis(Session);
+  
+  return {
+    redisClient,
+    redisStore
+  }
+}
+
+function createAndGetSessionMiddleware(redisStore, redisClient){
+  const sessionMiddleware = Session({
+    store: new redisStore({client:redisClient}),
+    secret: Config.session.cookie.secret,
     resave: true,
     saveUninitialized: true,
-    cookie: { maxAge: 300000 } // auto clear session after 5 mins
-});
-
-sio.use((socket, next)=> sessionMiddleware(socket.request, {}, next))
-app.use(sessionMiddleware)
-
-app.get("/", function(req, res){
-  console.log('api session id: ', req.session.id)
-    res.send({session: 'session has been set'}) // Session object in a normal request
-});
-
-app.post("/session/end", (req,res)=>{
-  req.session.destroy();
-  res.end();
-})
-
-
-sio.use((socket, next) => {
-  sessionMiddleware(socket.request, {}, next);
-  // sessionMiddleware(socket.request, socket.request.res, next); will not work with websocket-only
-  // connections, as 'socket.request.res' will be undefined in that case
-});
-
-
-// sio.use(async (socket, next) => {
-  
-  // const sessionID = socket.request.session.id;
-  // console.log('ws sessionId: ', sessionID)
- 
-// //   if (sessionID) {
-// //     const session = await storeManager.findSession(sessionID);
-// //     if (session) {
-// //       socket.sessionID = sessionID;
-// //       socket.userID = session.userID;
-// //       socket.username = session.username;
-// //       return next();
-// //     }
-// //   }
-// //   const username = socket.handshake.auth.username;
-
-// //   if (!username) {
-// //     return next(new Error("invalid username"));
-// //   }
-// //   socket.sessionID = sessionID;
-// //   socket.userID = randomId();
-// //   socket.username = username;
-// //   next();
-// // });
-
-sio.on("connection", async function(socket) {
-
-   const session = socket.request.session;
-   const requestSocketId = socket.id;
-   console.log('ws sessionId: ', session.id);
-
-  socket.on("session:getUsername", ({})=>{
-    const {username} = session;
-    sio.to(requestSocketId).emit("getUsername", {username}) 
-  })
-
-  socket.on("session:setUsername", ({username}, callback)=>{
-    session.username = username || "";
-    session.save();
-    callback({
-      isUsernameSet: true
-    });
-  })
-//   // const cookies = cookie.parse(socket.handshake.headers.cookie);
-//   console.log(socket.request.session.id)
-//   // console.log('session',socket.request.session.id) // Now it's available from Socket.IO sockets too! Win!
-//   // socket.request.session.save()
- 
-// //   // // persist session
-// //   await storeManager.saveSession(socket.sessionID, {
-// //     userID: socket.userID,
-// //     username: socket.username,
-// //     connected: true,
-// //   });
-
-// //   // // emit session details
-// //   // socket.emit("session", {
-// //   //   sessionID: socket.sessionID,
-// //   //   userID: socket.userID,
-// //   // });
-
-// //   // // join the "userID" room
-// //   socket.join(socket.userID);
-
-// //   // // fetch existing users
-// //   const users = [];
-// //   storeManager.findAllSessions().then(keys=>{
-// //     keys.forEach((session) => {
-// //       users.push({
-// //         userID: session.userID,
-// //         username: session.username,
-// //         connected: session.connected,
-// //       });
-// //     });
-// //     socket.emit("users", users);
-// //   })
- 
-
-//   // // notify existing users
-//   // socket.broadcast.emit("user connected", {
-//   //   userID: socket.userID,
-//   //   username: socket.username,
-//   //   connected: true,
-//   // });
-
-//   // // forward the private message to the right recipient (and to other tabs of the sender)
-//   // socket.on("private message", ({ content, to }) => {
-//   //   socket.to(to).to(socket.userID).emit("private message", {
-//   //     content,
-//   //     from: socket.userID,
-//   //     to,
-//   //   });
-//   // });
-
-//   // notify users upon disconnection
-//   // socket.on("disconnect", async () => {
-//   //   const matchingSockets = await io.in(socket.userID).allSockets();
-//   //   const isDisconnected = matchingSockets.size === 0;
-//   //   if (isDisconnected) {
-//   //     // notify other users
-//   //     socket.broadcast.emit("user disconnected", socket.userID);
-//   //     // update the connection status of the session
-//   //     sessionStore.saveSession(socket.sessionID, {
-//   //       userID: socket.userID,
-//   //       username: socket.username,
-//   //       connected: false,
-//   //     });
-//   //   }
+    cookie: {maxAge: Config.session.cookie.maxAge}
   });
-// });  
+  return sessionMiddleware;
+}
 
-// app.use(session({
-//   secret: 'keyboard cat',
-//   resave: false,
-//   saveUninitialized: true,
-//   cookie: { secure: true }
-// }))
+function setSameSessionOnExpressAndSocketIo(sessionMiddleware, app, sio){
+  sio.use((socket, next)=> sessionMiddleware(socket.request, {}, next))
+  app.use(sessionMiddleware)  
+}
 
+function initExpressRoutes(app){
+  app.get("/", function(req, res){
+    if(isDevelopmentEnv())
+      console.log('api session id: ', req.session.id)
+    res.send({session: 'session has been set'}) // Session object in a normal request
+  });
+  
+  app.post("/session/end", (req,res)=>{
+    req.session.destroy();
+    res.end();
+  })
+  
+}
 
+function initSocketIoEvents(sio){
+  sio.on("connection", async function(socket) {
 
-server.listen(3000, ()=>{
-  console.log("server listening in on [::1]:3000")
-});
+    const session = socket.request.session;
+    const requestSocketId = socket.id;
+    
+    if(isDevelopmentEnv())
+      console.log('ws sessionId: ', session.id);
+  
+    socket.on("session:getUsername", ({})=>{
+      const {username} = session;
+      sio.to(requestSocketId).emit("getUsername", {username}) 
+    })
+  
+    socket.on("session:setUsername", ({username}, callback)=>{
+      session.username = username || "";
+      session.save();
+      callback({
+        isUsernameSet: true
+      });
+    })
+  
+  })
+}
+
+function startListening(httpServer){
+  httpServer.listen(Config.port, ()=>{
+    console.log(`Listening on ${Config.address}:${Config.port}`)
+  })
+}

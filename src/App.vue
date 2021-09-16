@@ -1,5 +1,6 @@
 <template>
   <div id="app">
+    <h2 id="app-title">A session shared amongst vue, express, & socket.io</h2>
     <select-username
       v-if="!usernameAlreadySelected"
       @input="onUsernameSelection"
@@ -95,7 +96,11 @@ body {
 #app {
   font-family: Lato, Arial, sans-serif;
   font-size: 14px;
-   width: 300px;
+  width: 500px;
   margin: 200px auto 0;
+}
+
+#app-title{
+  margin-bottom:50px;
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
     <div>
-         <h3>User: <span id="user">{{username}}</span> is currently in session</h3>
+        <h3>Hi! <span id="user">{{username}}</span> your session is currently active!</h3>
         <button @click="onEndSession">end session</button>
     </div>
 </template>
