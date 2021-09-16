@@ -1,11 +1,12 @@
 import { io } from "socket.io-client";
+import config from "./config";
 
-const URL = "http://localhost:3000";
-const socket = io(URL, 
+const socket = io(config.apiUrl, 
   { autoConnect: false, 
     withCredentials: true
   });
 
+// logs every event emitted from server
 socket.onAny((event, ...args) => {
   console.log(event, args);
 });

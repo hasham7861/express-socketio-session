@@ -155,7 +155,7 @@ var sessionMiddleware = session({
     secret: "keyboard cat",
     resave: true,
     saveUninitialized: true,
-    cookie: { maxAge: 120000 }
+    cookie: { maxAge: 300000 } // auto clear session after 5 mins
 });
 
 sio.use((socket, next)=> sessionMiddleware(socket.request, {}, next))
@@ -166,6 +166,10 @@ app.get("/", function(req, res){
     res.send({session: 'session has been set'}) // Session object in a normal request
 });
 
+app.post("/session/end", (req,res)=>{
+  req.session.destroy();
+  res.end();
+})
 
 
 sio.use((socket, next) => {
@@ -202,8 +206,22 @@ sio.use((socket, next) => {
 
 sio.on("connection", async function(socket) {
 
-   const sessionID = socket.request.session.id;
-  console.log('ws sessionId: ', sessionID)
+   const session = socket.request.session;
+   const requestSocketId = socket.id;
+   console.log('ws sessionId: ', session.id);
+
+  socket.on("session:getUsername", ({})=>{
+    const {username} = session;
+    sio.to(requestSocketId).emit("getUsername", {username}) 
+  })
+
+  socket.on("session:setUsername", ({username}, callback)=>{
+    session.username = username || "";
+    session.save();
+    callback({
+      isUsernameSet: true
+    });
+  })
 //   // const cookies = cookie.parse(socket.handshake.headers.cookie);
 //   console.log(socket.request.session.id)
 //   // console.log('session',socket.request.session.id) // Now it's available from Socket.IO sockets too! Win!

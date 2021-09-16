@@ -1,5 +1,5 @@
 <template>
-  <div class="select-username">
+  <div> 
     <form @submit.prevent="onSubmit">
       <input v-model="username" placeholder="Your username..." />
       <button :disabled="!isValid">Send</button>
@@ -8,6 +8,7 @@
 </template>
 
 <script>
+
 export default {
   name: "SelectUsername",
   data() {
@@ -29,8 +30,5 @@ export default {
 </script>
 
 <style scoped>
-.select-username {
-  width: 300px;
-  margin: 200px auto 0;
-}
+
 </style>

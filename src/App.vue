@@ -4,60 +4,80 @@
       v-if="!usernameAlreadySelected"
       @input="onUsernameSelection"
     />
-    <chat v-else />
+    <profile v-else 
+      :username="username"
+      />
   </div>
 </template>
 
 <script>
 import SelectUsername from "./components/SelectUsername";
-import Chat from "./components/Chat";
 import socket from "./socket";
-
-
+import Profile from './components/Profile.vue';
+import config from './config';
 
 export default {
   name: "App",
   components: {
-    Chat,
     SelectUsername,
+    Profile
   },
   data() {
     return {
       usernameAlreadySelected: false,
+      username: ""
     };
   },
   methods: {
     onUsernameSelection(username) {
-      this.usernameAlreadySelected = true;
-      socket.auth = { username };
-      socket.connect();
+      // set the username in the server session, and then set username already selected to true
+      socket.emit("session:setUsername",{username}, ({isUsernameSet})=>{
+        if(isUsernameSet){
+          this.username = username;
+          this.usernameAlreadySelected = true;
+        }
+          
+      })
+
     },
+    async establishAHttpAndWsSession(){
+      /**
+       * This method establishes a sesion on http server 
+       * and ws server and connects to socket.
+       */
+      return fetch(config.apiUrl, 
+                {
+                  method:'get', 
+                  credentials: 'include'
+                }).then(()=>{
+                  socket.connect();
+                })
+    }
+
   },
-  created() {
-    // const sessionID = this.$cookie.get('sessionID')
-    
-    // if (sessionID) {
-    //   this.usernameAlreadySelected = true;
-    //   socket.auth = {sessionID: sessionID};
-    //   socket.connect();
-    // }
+  async created() {
+    await this.establishAHttpAndWsSession()
+    /* 
+     check if username is already in session then have,
+       then set usernameAlready selected to true,
+       and pass the username in the prop
+    **/
+   socket.emit("session:getUsername",{})
+   socket.on("getUsername", ({username})=>{
+     if(!username){
+       this.usernameAlreadySelected = false
+     }else{
+        this.username=username;
+        this.usernameAlreadySelected = true
+     }
+   })
 
-    // socket.on("session", ({ sessionID, userID }) => {
-    //   // attach the session ID to the next reconnection attempts
-    //   socket.auth = { sessionID };
-    //   this.$cookie.set('sessionID', sessionID, { expires: '2m' });
-    //   // save the ID of the user
-    //   socket.userID = userID;
-    // });
 
-    // socket.on("connect_error", (err) => {
-    //   if (err.message === "invalid username") {
-    //     this.usernameAlreadySelected = false;
-    //   }
-    // });
   },
   destroyed() {
-    socket.off("connect_error");
+    // unregister events and close connection
+    socket.off("getUsername")
+    socket.close()
   },
 };
 </script>
@@ -75,5 +95,7 @@ body {
 #app {
   font-family: Lato, Arial, sans-serif;
   font-size: 14px;
+   width: 300px;
+  margin: 200px auto 0;
 }
 </style>
