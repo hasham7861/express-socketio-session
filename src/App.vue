@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <h2 id="app-title">A session shared amongst vue, express, & socket.io</h2>
+    <app-header/>
     <select-username
       v-if="!usernameAlreadySelected"
       @input="onUsernameSelection"
@@ -13,15 +13,18 @@
 
 <script>
 import SelectUsername from "./components/SelectUsername";
-import socket from "./socket";
 import Profile from './components/Profile.vue';
+import AppHeader from './components/AppHeader.vue';
+
+import socket from "./socket";
 import config from './config';
 
 export default {
   name: "App",
   components: {
     SelectUsername,
-    Profile
+    Profile,
+    AppHeader,
   },
   data() {
     return {
@@ -100,7 +103,4 @@ body {
   margin: 200px auto 0;
 }
 
-#app-title{
-  margin-bottom:50px;
-}
 </style>
